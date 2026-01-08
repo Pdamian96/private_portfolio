@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 # Config
 # ------------------
 SIZE = 99
-STEPS_PER_SEGMENT = 20
+K = 5
 MAX_ITERATIONS = 100
 STOP_THRESHOLD = 0.85
 JOB_NUMBER = 0
@@ -43,15 +43,14 @@ x = SIZE/2
 y = SIZE/2
 
 x, y = 44, 44
-grid[x, y] = 1
 
 # Jobs:
 # 0 = corridor
 # 1 = room
-jobs = [(84,84,1)]
-jobs = [(44,44,1)]
-grid[94,94] = 4
-grid[44,44] = 4
+
+
+jobs = [(44,44,1,1,0,0)]
+
 
 # ------------------
 # Main loop 
@@ -121,6 +120,16 @@ CARDINAL_DIRECTIONS = [
 #
 #
 
+# checks in a size by size square around x, y
+def valid_room_placement(x,y,size):
+    valid = True
+    for ix in range (-1, 2):
+        for iy in range (-1, 2 ):
+            if grid[x + ix, y + iy] != 0:
+                valid = False
+    return valid
+
+
 def crossing_place_path(x,y):
     if grid[x+2,y] == 2:
         grid[x+1,y] = 1
@@ -156,8 +165,8 @@ def paint_path(x,y,dx,dy,distance):
         distance = distance - 1
 
 def in_bounds(x, y, dx, dy):
-    new_x = x + dx * 5
-    new_y = y + dy * 5
+    new_x = x + dx * K
+    new_y = y + dy * K
     if 1 <= new_x < SIZE - 1 and 1 <= new_y < SIZE - 1:
         return True
     return False
@@ -166,56 +175,78 @@ def in_bounds(x, y, dx, dy):
 def fix_room_paths(x,y):
     for dx,dy in CARDINAL_DIRECTIONS:
         if in_bounds(x,y,dx,dy):
-            if grid[x+dx*2,y+dy*2] == 1:
-                paint_path(x,y,dx,dy,5)
+            if grid[x+dx*3,y+dy*3] == 1 and grid[x+dx*K,y+dy*K] != 3:
+                paint_path(x,y,dx,dy,K)
 
-def ROOM_JOB(x, y):
+def ROOM_JOB(x, y, last_job, last_dx, last_dy):
     print("Room")
-    for ix in range (-1, 2):
-        for iy in range (-1, 2 ):
-            grid[x + ix, y + iy] = 2
-    grid[x,y] = 3
+
+    if last_job == 1:
+        if random.randrange(0,2) == 1:
+            for ix in range (-2, 3):
+                for iy in range (-2, 3 ):
+                    grid[x + ix, y + iy] = 2
+            for ix in range (-1, 2):
+                for iy in range (-1, 2 ):
+                    grid[x + ix, y + iy] = 1
+            grid[x,y] = 3
+
+            last_dx = last_dx *-1
+            last_dy = last_dy *-1
+            print(str(last_dx) + str(last_dy))
+            if last_dx != 0:
+                grid[x+last_dx,y+1] = 1
+                grid[x+last_dx,y-1] = 1
+            if last_dy != 0:
+                grid[x+1,y+last_dy] = 1
+                grid[x-1,y+last_dy] = 1
+            
+    else:
+        for ix in range (-1, 2):
+            for iy in range (-1, 2 ):
+                grid[x + ix, y + iy] = 2
+        grid[x,y] = 3
     
 
 
     for dx,dy in CARDINAL_DIRECTIONS:
         if in_bounds(x,y,dx,dy):
-            if grid[x+dx*5, y+dy*5] == 0:
-                paint_path(x,y,dx,dy,5)
+            if grid[x+dx*K, y+dy*K] == 0:
+                paint_path(x,y,dx,dy,K)
                 if random.randrange(0,2) == 1:
                     #room job add
-                    jobs.append((x+dx*5,y+dy*5,1))
-                    if dx != 0:
-                        grid[x+dx*2,y+1] = 2
-                        grid[x+dx*3,y+1] = 2
-                        grid[x+dx*2,y-1] = 2
-                        grid[x+dx*3,y-1] = 2
-                    if dy != 0:
-                        grid[x+1,y+dy*2] = 2
-                        grid[x+1,y+dy*3] = 2
-                        grid[x-1,y+dy*2] = 2
-                        grid[x-1,y+dy*3] = 2
+                    jobs.append((x+dx*K,y+dy*K,1,1,dx,dy))
+                    # if dx != 0:
+                    #     grid[x+dx*2,y+1] = 2
+                    #     grid[x+dx*3,y+1] = 2
+                    #     grid[x+dx*2,y-1] = 2
+                    #     grid[x+dx*3,y-1] = 2
+                    # if dy != 0:
+                    #     grid[x+1,y+dy*2] = 2
+                    #     grid[x+1,y+dy*3] = 2
+                    #     grid[x-1,y+dy*2] = 2
+                    #     grid[x-1,y+dy*3] = 2
 
                     
                     
                 else:
-                    jobs.append((x+dx*5,y+dy*5,0)) 
+                    jobs.append((x+dx*K,y+dy*K,0,1,dx,dy)) 
         fix_room_paths(x,y)
             
             
-def CORRIDOR_JOB(x,y):
+def CORRIDOR_JOB(x,y, last_job, last_dx, last_dy):
     print("Corridor")
     for dx,dy in CARDINAL_DIRECTIONS:
         if in_bounds(x,y,dx,dy):
-            if grid[x+dx*5, y+dy*5] == 0:
-                paint_path(x,y,dx,dy,5)
+            if grid[x+dx*K, y+dy*K] == 0:
+                paint_path(x,y,dx,dy,K)
                 if random.randrange(0,2) == 1:
-                    jobs.append((x+dx*5,y+dy*5,1))
+                    jobs.append((x+dx*K,y+dy*K,1,0,dx,dy))
                 else:
-                    jobs.append((x+dx*5,y+dy*5,0))
-            if grid[x+dx*5, y+dy*5] == 1:
+                    jobs.append((x+dx*K,y+dy*K,0,0,dx,dy))
+            if grid[x+dx*K, y+dy*K] == 1:
                 if random.randrange(0,5 ) == 1:
-                    paint_path(x,y,dx,dy,5)
+                    paint_path(x,y,dx,dy,K)
     
     
 
@@ -233,10 +264,16 @@ while len(jobs) > 0:
     x = current_job[0]
     y = current_job[1]
     job_type = current_job[2]
+    #the job type, this job was called from
+    last_job_type = current_job[3]
+    last_dx = current_job[4]
+    last_dy = current_job[5]
+
+
     if job_type == 1:
-        ROOM_JOB(x, y)
+        ROOM_JOB(x, y, last_job_type, last_dx, last_dy)
     if job_type == 0:
-        CORRIDOR_JOB(x,y)
+        CORRIDOR_JOB(x,y, last_job_type, last_dx, last_dy)
 
     
 fix_room_pixels()
