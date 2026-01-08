@@ -1,0 +1,10 @@
+# balanced
+python shift.py my_sprite.jpg
+
+# coarser (fewer clusters)
+python shift.py my_sprite.png --sensitivity 0.2
+
+# finer (more clusters; better for tiny accents like eyes)
+python shift.py my_sprite.png --sensitivity 0.9
+
+python -m pyinstaller --noconfirm --onefile --windowed shift_gui.py

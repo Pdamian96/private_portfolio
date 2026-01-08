@@ -1,0 +1,15 @@
+First
+# 1) make a mask (range pick from (120,86))
+python create_mask.py cow.png --mode range --pick_x 120 --pick_y 86 --tol 0.06 --close 1 --feather 1 --out mask.png
+
+# 2) paste with mixed gradients
+python poisson_sticker.py --src cow.png --dst wall.jpg --mask mask.png --x 220 --y 140 --mode mixed --out out.png
+
+
+
+
+# Classic seamless clone
+python poisson_sticker.py --src cow.png --dst backround.jpg --mask mask.png --x 220 --y 140 --mode poisson --out out_poisson.png
+
+# Mixed gradients (usually better on textured backgrounds)
+python poisson_sticker.py --src cow.png --dst backround.jpg --mask mask.png --x 220 --y 140 --mode mixed --out out_mixed.png
