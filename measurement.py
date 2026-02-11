@@ -2,15 +2,13 @@ import tkinter as tk
 from tkinter import filedialog, simpledialog, messagebox
 from PIL import Image, ImageTk
 import math
-# Imports needed if you implement the Save Image feature later:
-# from PIL import ImageDraw, ImageFont 
+
 
 class ImageMeasureTool:
     def __init__(self, root):
         self.root = root
         self.root.title("Image Measurement Tool Pro")
         
-        # State Variables
         self.measure_id = 0
         self.pixel_to_meter = 1.0 
         self.points = []
@@ -24,18 +22,14 @@ class ImageMeasureTool:
         self.image_id = None
         self.measurements_visible = True
         
-        # UI Colors
         self.normal_color = "#FF3333"
         self.line_hover_color = "orange"
-        # Changing hover color to a bright yellow/gold for better contrast against black bg
         self.text_hover_color = "#FFFF00" 
         self.preview_color = "#AAAAAA"
 
-        # UI Layout
         self.canvas = tk.Canvas(root, cursor="cross", bg="#1e1e1e", highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
         
-        # Status Bar
         self.status_frame = tk.Frame(root, bd=1, relief=tk.SUNKEN, bg="#2e2e2e")
         self.status_frame.pack(fill=tk.X)
         self.coords_label = tk.Label(self.status_frame, text="X: 0, Y: 0", width=20, anchor="w", bg="#2e2e2e", fg="#aaaaaa")
@@ -118,7 +112,6 @@ class ImageMeasureTool:
         self.canvas.create_line(x1, y1, x2, y2, fill=self.normal_color, width=2, tags=shared_tags + ("line",))
         
         label = f"{meter_dist:.3f}m"
-        # Added a slight offset to y position so it doesn't sit exactly on the line
         self.canvas.create_text((x1+x2)/2, (y1+y2)/2 - 15, text=label, fill=self.normal_color, 
                                 font=("Arial", int(10*self.scale), "bold"), tags=shared_tags + ("text",))
         
@@ -161,18 +154,16 @@ class ImageMeasureTool:
         self.hovered_tag = tag
         self.canvas.tag_raise(tag)
 
-        # 1. Find the text item associated with this tag
+
         text_item = self.canvas.find_withtag(f"{tag}&&text")
         if text_item:
-            # 2. Get the bounding box coords of the text
             x1, y1, x2, y2 = self.canvas.bbox(text_item)
             padding = 4
-            # 3. Create a black rectangle behind it.
-            # stipple="gray50" creates a semi-transparent effect in Tkinter.
+
             bg_rect = self.canvas.create_rectangle(x1-padding, y1-padding, x2+padding, y2+padding,
                                                     fill="black", outline="black", stipple="gray50", 
                                                     tags=("hover_bg",))
-            # 4. Ensure the text is drawn ON TOP of the new background rectangle
+
             self.canvas.tag_raise(f"{tag}&&text", bg_rect)
 
         self.canvas.itemconfig(f"{tag}&&line", fill=self.line_hover_color, width=3)
@@ -180,7 +171,6 @@ class ImageMeasureTool:
 
     def clear_hover(self):
         if self.hovered_tag:
-            # 1. Delete the temporary background rectangle
             self.canvas.delete("hover_bg")
 
             tag = self.hovered_tag
@@ -226,13 +216,11 @@ class ImageMeasureTool:
         self.tk_image = ImageTk.PhotoImage(resized)
         self.canvas.itemconfig(self.image_id, image=self.tk_image)
         
-        # Update font sizes for existing text
         new_font_size = max(8, int(10 * self.scale))
         for item in self.canvas.find_withtag("text"):
              self.canvas.itemconfig(item, font=("Arial", new_font_size, "bold"))
              
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
-        # If we are hovering while zooming, we need to redraw the bg rect for new size
         if self.hovered_tag:
              self.clear_hover()
              self.apply_hover(self.hovered_tag)
