@@ -1,13 +1,4 @@
-#!/usr/bin/env python3
-# pixel_palette_gui.py
-#
-# Pixel-art palette extractor / quantizer with a GUI.
-# Core: OKLab mean-shift on UNIQUE colors (fast), single sensitivity knob,
-# accent rescue, outline de-bias, tiny spatial coherence.
-# New toggles: Exact-K palette, Medoid centers, Hue protection (with ranges),
-# Performance mode (caps unique colors, faster iterations).
-# Built-in progress bar, inline previews, optional 3D OKLab scatter.
-#
+
 # Deps: pip install pillow numpy  (matplotlib optional for 3D)
 # Run:  python pixel_palette_gui.py
 
@@ -53,7 +44,7 @@ def _circ_dist_deg(h1, h2):
     return np.abs((h1 - h2 + 180.0) % 360.0 - 180.0)
 
 # ----------------------------
-# Progress helper (GUI-friendly)
+# Progress helper
 # ----------------------------
 def _progress_cb_factory(setter_fn):
     last = {'t': 0.0}
@@ -66,7 +57,7 @@ def _progress_cb_factory(setter_fn):
     return cb
 
 # ----------------------------
-# Mean-shift (Gaussian kernel)
+# Mean-shift
 # ----------------------------
 def mean_shift(points: np.ndarray, bandwidth: float, max_iters: int = 15, eps: float = 2e-4,
                weights: np.ndarray = None, progress_cb=None):
@@ -124,10 +115,10 @@ def assign_clusters(modes: np.ndarray, merge_radius: float):
 # ----------------------------
 def map_sensitivity(sens: float, perf=False):
     s = float(np.clip(sens, 0.0, 1.0))
-    bandwidth       = (1.0 - s) * 0.095 + s * 0.045   # 0:0.095 .. 1:0.045
+    bandwidth       = (1.0 - s) * 0.095 + s * 0.045
     merge_radius    = bandwidth * 0.30
-    min_cluster_frac= (1.0 - s) * 0.015 + s * 0.001   # 0:1.5% .. 1:0.1%
-    spatial_lambda  = (1.0 - s) * 0.009 + s * 0.003   # tiny spatial coherence
+    min_cluster_frac= (1.0 - s) * 0.015 + s * 0.001
+    spatial_lambda  = (1.0 - s) * 0.009 + s * 0.003 
     rescue_delta    = 0.045 - 0.02 * s
     min_accent_frac = min_cluster_frac * 0.3
 
@@ -160,7 +151,7 @@ def _hue_in_ranges(h, ranges):
     for lo, hi in ranges:
         if lo <= hi:
             if (h >= lo) and (h <= hi): return True
-        else:  # wraparound (e.g., 350-20)
+        else: 
             if (h >= lo) or (h <= hi): return True
     return False
 
@@ -182,10 +173,9 @@ def palette_oklab_meanshift(
         raise ValueError("No opaque pixels found.")
 
     H, W = arr_rgba.shape[:2]
-    rgb8 = arr_rgba[alpha_mask, :3]  # (P,3) uint8
+    rgb8 = arr_rgba[alpha_mask, :3] 
     uniq, inverse, counts = np.unique(rgb8, axis=0, return_inverse=True, return_counts=True)
 
-    # Performance cap for unique colors
     if perf and uniq.shape[0] > topN_unique:
         order = np.argsort(-counts)
         keep = order[:topN_unique]
@@ -206,7 +196,6 @@ def palette_oklab_meanshift(
     U = uniq.shape[0]
     total_pixels = float(counts.sum())
 
-    # Average (x,y) per unique color
     ys, xs = np.nonzero(alpha_mask)
     xs = xs.astype(np.float32); ys = ys.astype(np.float32)
     sum_x = np.zeros(U, dtype=np.float32); np.add.at(sum_x, inverse, xs)
@@ -221,7 +210,6 @@ def palette_oklab_meanshift(
     hue_u    = _hue_deg_from_ab(a_u, b_u)
     chroma_u = np.sqrt(a_u*a_u + b_u*b_u)
 
-    # Outline de-bias (only near-black penalized)
     L = lab_u[:, 0]
     debias = 0.4 + 0.6 * np.clip((L - 0.10) / 0.70, 0.0, 1.0)
 
@@ -271,7 +259,6 @@ def palette_oklab_meanshift(
         else:
             dropped.append((k, frac, int(counts[idx].sum()), mean_lab, mean_srgb, mean_hue, mean_chroma))
 
-    # Accent / hue rescue
     if kept_labs:
         kept_means = np.stack([ml for (_, ml, _, _) in kept_labs], axis=0)
         kept_hues  = np.array([hh for (_, _, hh, _) in kept_labs], dtype=np.float32)
@@ -302,11 +289,9 @@ def palette_oklab_meanshift(
                          "hue": mean_hue, "chroma": mean_chroma})
         label_to_kept[k] = kept_index
 
-    # Normalize weights
     sw = sum(c["weight"] for c in clusters) or 1.0
     for c in clusters: c["weight"] /= sw
 
-    # Palette-aware global average
     avg_lin = np.zeros(3, dtype=np.float32)
     for c in clusters:
         avg_lin += srgb_to_linear(np.array(c["center_srgb"])) * c["weight"]
@@ -483,31 +468,27 @@ class App(tk.Tk):
         self.input_image = None
         self.results = None
 
-        # Left: controls
         ctrl = ttk.Frame(self)
         ctrl.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=8)
 
         ttk.Label(ctrl, text="Controls", font=("TkDefaultFont", 12, "bold")).pack(anchor="w", pady=(0,6))
         ttk.Button(ctrl, text="Open Image...", command=self.on_open).pack(fill=tk.X, pady=4)
 
-        # Sensitivity
         self.sens_var = tk.DoubleVar(value=0.6)
         ttk.Label(ctrl, text="Sensitivity (0..1)").pack(anchor="w", pady=(10,0))
         ttk.Scale(ctrl, from_=0.0, to=1.0, orient=tk.HORIZONTAL, variable=self.sens_var).pack(fill=tk.X, pady=2)
 
-        # Exact-K
         self.k_var = tk.IntVar(value=0)
         krow = ttk.Frame(ctrl); krow.pack(fill=tk.X, pady=(6,0))
         ttk.Label(krow, text="Exact K (0=off)").pack(side=tk.LEFT)
         ttk.Spinbox(krow, from_=0, to=64, textvariable=self.k_var, width=6).pack(side=tk.RIGHT)
 
-        # Toggles
         self.medoid_var = tk.BooleanVar(value=False)
         self.hue_var = tk.BooleanVar(value=False)
         self.perf_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(ctrl, text="Medoid centers (use real colors)", variable=self.medoid_var).pack(anchor="w", pady=(8,0))
         ttk.Checkbutton(ctrl, text="Hue protection (keep tiny accents)", variable=self.hue_var).pack(anchor="w")
-        # Hue ranges
+
         rngrow = ttk.Frame(ctrl); rngrow.pack(fill=tk.X)
         ttk.Label(rngrow, text="Protect ranges (deg):").pack(side=tk.LEFT)
         self.ranges_entry = ttk.Entry(rngrow)
@@ -515,13 +496,11 @@ class App(tk.Tk):
         self.ranges_entry.pack(side=tk.RIGHT, fill=tk.X, expand=True)
         ttk.Checkbutton(ctrl, text="Performance mode", variable=self.perf_var).pack(anchor="w", pady=(6,0))
 
-        # 3D scatter
         self.gen3d_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(ctrl, text="Generate 3D OKLab scatter (if matplotlib installed)", variable=self.gen3d_var).pack(anchor="w", pady=(6,0))
 
         ttk.Button(ctrl, text="Run", command=self.on_run).pack(fill=tk.X, pady=(10,4))
 
-        # Progress
         ttk.Label(ctrl, text="Progress").pack(anchor="w", pady=(10,2))
         self.prog_var = tk.DoubleVar(value=0.0)
         ttk.Progressbar(ctrl, orient=tk.HORIZONTAL, mode='determinate', variable=self.prog_var, maximum=100.0).pack(fill=tk.X, pady=2)
@@ -530,13 +509,11 @@ class App(tk.Tk):
 
         ttk.Separator(ctrl).pack(fill=tk.X, pady=12)
 
-        # Save outputs
         ttk.Button(ctrl, text="Save Outputs...", command=self.on_save).pack(fill=tk.X, pady=4)
         self.prefix_entry = ttk.Entry(ctrl); self.prefix_entry.insert(0, "result")
         ttk.Label(ctrl, text="Output prefix").pack(anchor="w", pady=(8,2))
         self.prefix_entry.pack(fill=tk.X)
 
-        # Right: previews
         right = ttk.Frame(self)
         right.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=8, pady=8)
 
@@ -549,13 +526,11 @@ class App(tk.Tk):
         self.quant_canvas   = tk.Label(bottom, bg="#222"); self.quant_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.oklab3d_canvas = tk.Label(bottom, bg="#222"); self.oklab3d_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6,0))
 
-        # Summary
         self.summary_var = tk.StringVar(value="")
         ttk.Label(right, textvariable=self.summary_var, justify=tk.LEFT, foreground="#444").pack(anchor="w", pady=(6,0))
 
         self._tk_images = {}
 
-    # --- UI helpers ---
     def _set_progress(self, frac):
         self.prog_var.set(frac * 100.0)
 
@@ -578,7 +553,6 @@ class App(tk.Tk):
             widget.configure(image=tkimg)
             self._tk_images[key] = tkimg
 
-    # --- Buttons ---
     def on_open(self):
         path = filedialog.askopenfilename(filetypes=[("Images", "*.png;*.jpg;*.jpeg;*.bmp;*.gif"), ("All files","*.*")])
         if not path: return
@@ -618,7 +592,6 @@ class App(tk.Tk):
                         hue_protect=hue_protect, protect_ranges=protect_ranges
                     )
 
-                # Post steps
                 if exact_k and exact_k > 0:
                     clusters = merge_to_k_clusters(clusters, exact_k, hue_protect=hue_protect)
                 if use_medoid:

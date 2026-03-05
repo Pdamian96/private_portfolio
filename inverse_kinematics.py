@@ -114,13 +114,7 @@ def solve_ccd(joints, target,
             if cross2d(to_end, to_target) < 0:
                 angle = -angle
 
-            # Damping
-            angle *= damping
-
-            # Clamp rotation step
-            angle = clamp(angle, -max_step, max_step)
-
-            # Rotate downstream
+            # Rotate all downstream joints
             for j in range(i+1, len(joints)):
                 joints[j].position = rotate_point(
                     joints[j].position,
@@ -140,9 +134,9 @@ WIDTH, HEIGHT = 900, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
-num_joints = 4
-segment_length = 60
-
+# Create chain
+num_joints = 5
+segment_length = 80
 joints = []
 start_x, start_y = WIDTH // 2, HEIGHT // 2
 
@@ -210,29 +204,16 @@ while running:
 
     screen.fill((25, 25, 25))
 
+    # Draw bones
     for i in range(len(joints) - 1):
-        pygame.draw.line(
-            screen,
-            (220, 220, 220),
-            joints[i].position,
-            joints[i+1].position,
-            4
-        )
+        pygame.draw.line(screen, (200, 200, 200), joints[i], joints[i+1], 4)
 
+    # Draw joints
     for joint in joints:
-        pygame.draw.circle(
-            screen,
-            (80, 150, 255),
-            (int(joint.position[0]), int(joint.position[1])),
-            8
-        )
+        pygame.draw.circle(screen, (80, 150, 255), (int(joint[0]), int(joint[1])), 8)
 
-    pygame.draw.circle(
-        screen,
-        (255, 80, 80),
-        (int(target[0]), int(target[1])),
-        10
-    )
+    # Draw target
+    pygame.draw.circle(screen, (255, 80, 80), (int(target[0]), int(target[1])), 10)
 
     pygame.display.flip()
 
