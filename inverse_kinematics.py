@@ -54,11 +54,9 @@ def solve_ccd(joints, target, iterations=10, tolerance=2):
             d = max(-1.0, min(1.0, dot(to_end, to_target)))
             angle = math.acos(d)
 
-            # Determine rotation direction
             if cross2d(to_end, to_target) < 0:
                 angle = -angle
 
-            # Rotate all downstream joints
             for j in range(i+1, len(joints)):
                 joints[j] = rotate_point(joints[j], joint, angle)
 
@@ -71,7 +69,6 @@ WIDTH, HEIGHT = 900, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
-# Create chain
 num_joints = 5
 segment_length = 80
 joints = []
@@ -101,12 +98,10 @@ while running:
             mouse = pygame.mouse.get_pos()
 
             if event.button == 1:
-                # Left click = drag target
                 if length(subtract(mouse, target)) < 15:
                     dragging_target = True
 
             elif event.button == 3:
-                # Right click = drag nearest joint
                 for i, joint in enumerate(joints):
                     if length(subtract(mouse, joint)) < 10:
                         dragging_joint = i
@@ -123,7 +118,6 @@ while running:
             if dragging_joint is not None:
                 joints[dragging_joint] = mouse
 
-    # Solve IK
     if not dragging_joint:
         solve_ccd(joints, target, iterations=8)
 
@@ -132,15 +126,15 @@ while running:
     # -----------------------------
     screen.fill((30, 30, 30))
 
-    # Draw bones
+    # Bones
     for i in range(len(joints) - 1):
         pygame.draw.line(screen, (200, 200, 200), joints[i], joints[i+1], 4)
 
-    # Draw joints
+    # Joints
     for joint in joints:
         pygame.draw.circle(screen, (80, 150, 255), (int(joint[0]), int(joint[1])), 8)
 
-    # Draw target
+    # Target
     pygame.draw.circle(screen, (255, 80, 80), (int(target[0]), int(target[1])), 10)
 
     pygame.display.flip()
